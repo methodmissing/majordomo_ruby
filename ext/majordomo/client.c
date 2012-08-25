@@ -119,11 +119,19 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
     return MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));
 }
 
-static VALUE rb_majordomo_client_close(VALUE obj){
-    GetMajordomoClient(obj);
-    mdp_client_destroy(&client->client);
-    client->client = NULL;
+static VALUE rb_nogvl_mdp_client_close(void *ptr)
+{
+    mdp_client_t *client = ptr;
+    mdp_client_destroy(&client);
     return Qnil;
+}
+
+static VALUE rb_majordomo_client_close(VALUE obj){
+    VALUE ret;
+    GetMajordomoClient(obj);
+    ret = rb_thread_blocking_region(rb_nogvl_mdp_client_close, (void *)client->client, RUBY_UBF_IO, 0);
+    client->client = NULL;
+    return ret;
 }
 
 void _init_majordomo_client()
