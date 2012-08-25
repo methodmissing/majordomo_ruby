@@ -33,9 +33,16 @@ static void rb_free_majordomo_worker(void *ptr)
     }
 }
 
+static VALUE rb_nogvl_mdp_worker_new(void *ptr)
+{
+    struct nogvl_md_worker_new_args *args = ptr;
+    return (VALUE)mdp_worker_new(args->broker, args->service, args->verbose);
+}
+
 static VALUE rb_majordomo_worker_s_new(int argc, VALUE *argv, VALUE klass)
 {
     rb_majordomo_worker_t *worker = NULL;
+    struct nogvl_md_worker_new_args args;
     VALUE obj, broker, service, verbose;
     rb_scan_args(argc, argv, "21", &broker, &service, &verbose);
     if (verbose == Qnil)
@@ -43,7 +50,11 @@ static VALUE rb_majordomo_worker_s_new(int argc, VALUE *argv, VALUE klass)
     Check_Type(broker, T_STRING);
     Check_Type(service, T_STRING);
     obj = Data_Make_Struct(klass, rb_majordomo_worker_t, rb_mark_majordomo_worker, rb_free_majordomo_worker, worker);
-    worker->worker = mdp_worker_new(RSTRING_PTR(broker), RSTRING_PTR(service), (verbose == Qtrue ? 1 : 0));
+
+    args.broker = RSTRING_PTR(broker);
+    args.service = RSTRING_PTR(service);
+    args.verbose = (verbose == Qtrue ? 1 : 0);
+    worker->worker = (mdp_worker_t *)rb_thread_blocking_region(rb_nogvl_mdp_worker_new, (void *)&args, RUBY_UBF_IO, 0);
     worker->broker = rb_str_new4(broker);
     worker->service = rb_str_new4(service);
     worker->heartbeat = INT2NUM(MAJORDOMO_WORKER_HEARTBEAT);

@@ -16,7 +16,13 @@ typedef struct {
     rb_majordomo_worker_t *worker = NULL; \
     Data_Get_Struct(obj, rb_majordomo_worker_t, worker); \
     if (!worker) rb_raise(rb_eTypeError, "uninitialized Majordomo worker!"); \
-	if (!worker->worker) rb_raise(rb_eRuntimeError, "Majordomo worker has already been closed!");
+    if (!worker->worker) rb_raise(rb_eRuntimeError, "Majordomo worker has already been closed!");
+
+struct nogvl_md_worker_new_args {
+    char *broker;
+    char *service;
+    int verbose;
+};
 
 void _init_majordomo_worker();
 
