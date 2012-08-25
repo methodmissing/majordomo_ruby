@@ -15,6 +15,5 @@ true/*
 *.gem
 doc/*
 .DS_Store
-ext/majordomo
 pkg
 ext/majordomo/Makefile
