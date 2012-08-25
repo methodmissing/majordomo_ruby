@@ -17,6 +17,13 @@ static void rb_mark_majordomo_client(void *ptr)
     }
 }
 
+static VALUE rb_nogvl_mdp_client_close(void *ptr)
+{
+    mdp_client_t *client = ptr;
+    mdp_client_destroy(&client);
+    return Qnil;
+}
+
 /*
  * :nodoc:
  *  GC free callback
@@ -26,7 +33,7 @@ static void rb_free_majordomo_client(void *ptr)
 {
     rb_majordomo_client_t *client = (rb_majordomo_client_t *)ptr;
     if (client) {
-        if (client->client) mdp_client_destroy(&client->client);
+        if (client->client) rb_thread_blocking_region(rb_nogvl_mdp_client_close, (void *)client->client, RUBY_UBF_IO, 0);
         xfree(client);
         client = NULL;
     }
@@ -117,13 +124,6 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
     if (!reply)
         return Qnil;
     return MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));
-}
-
-static VALUE rb_nogvl_mdp_client_close(void *ptr)
-{
-    mdp_client_t *client = ptr;
-    mdp_client_destroy(&client);
-    return Qnil;
 }
 
 static VALUE rb_majordomo_client_close(VALUE obj){
