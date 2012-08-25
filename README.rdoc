@@ -1,0 +1,5 @@
+= Majordomo - A Ruby binding for libmd (Majordomo implementation in C) {<img src="https://secure.travis-ci.org/methodmissing/type_array.png" alt="Build Status" />}[http://travis-ci.org/methodmissing/majordomo]
+
+(c) 2012 Lourens Naudé (methodmissing)
+
+  http://github.com/methodmissing/majordomo
