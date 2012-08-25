@@ -90,8 +90,16 @@ static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
     return Qnil;
 }
 
+static VALUE rb_nogvl_mdp_client_send(void *ptr)
+{
+    struct nogvl_md_client_send_args *args = ptr;
+    return (VALUE)mdp_client_send(args->client, args->service, &args->request);
+}
+
 static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
-    zmsg_t *request, *reply = NULL;
+    zmsg_t *request = NULL;
+    zmsg_t *reply = NULL;
+    struct nogvl_md_client_send_args args;
     GetMajordomoClient(obj);
     Check_Type(service, T_STRING);
     Check_Type(message, T_STRING);
@@ -102,7 +110,10 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
         zmsg_destroy(&request);
         return Qnil;
     }
-    reply = mdp_client_send(client->client, RSTRING_PTR(service), &request);
+    args.client = client->client;
+    args.service = RSTRING_PTR(service);
+    args.request = request;
+    reply = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_client_send, (void *)&args, RUBY_UBF_IO, 0);
     if (!reply)
         return Qnil;
     return MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));

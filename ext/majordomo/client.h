@@ -22,6 +22,12 @@ struct nogvl_md_client_new_args {
     int verbose;
 };
 
+struct nogvl_md_client_send_args {
+    mdp_client_t *client;
+    char *service;
+    zmsg_t *request
+};
+
 void _init_majordomo_client();
 
 #endif
