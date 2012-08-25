@@ -52,7 +52,7 @@ class TestClient < MajordomoTestCase
 
   def test_send
     client = Majordomo::Client.new(BROKER, true)
-    client.timeout = 300;
+    client.timeout = 100;
     client.retries = 5
     client.send("test", "message")
   ensure

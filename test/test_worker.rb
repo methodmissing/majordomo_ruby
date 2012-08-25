@@ -67,6 +67,7 @@ class TestWorker < MajordomoTestCase
     service = "test_revc"
     worker = Majordomo::Worker.new(BROKER, service, true)
     client = Majordomo::Client.new(BROKER, true)
+    client.timeout = 100
     client.send service, "message"
     assert_equal "message", worker.recv
   ensure
