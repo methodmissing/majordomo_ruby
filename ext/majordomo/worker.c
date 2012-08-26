@@ -18,6 +18,13 @@ static void rb_mark_majordomo_worker(void *ptr)
     }
 }
 
+static VALUE rb_nogvl_mdp_worker_close(void *ptr)
+{
+    mdp_worker_t *worker = ptr;
+    mdp_worker_destroy(&worker);
+    return Qnil;
+}
+
 /*
  * :nodoc:
  *  GC free callback
@@ -27,7 +34,7 @@ static void rb_free_majordomo_worker(void *ptr)
 {
     rb_majordomo_worker_t *worker = (rb_majordomo_worker_t *)ptr;
     if (worker) {
-        if (worker->worker) mdp_worker_destroy(&worker->worker);
+        if (worker->worker) rb_thread_blocking_region(rb_nogvl_mdp_worker_close, (void *)worker->worker, RUBY_UBF_IO, 0);
         xfree(worker);
         worker = NULL;
     }
@@ -109,10 +116,11 @@ static VALUE rb_majordomo_worker_recv(VALUE obj){
 }
 
 static VALUE rb_majordomo_worker_close(VALUE obj){
+    VALUE ret;
     GetMajordomoWorker(obj);
-    mdp_worker_destroy(&worker->worker);
+    ret = rb_thread_blocking_region(rb_nogvl_mdp_worker_close, (void *)worker->worker, RUBY_UBF_IO, 0);
     worker->worker = NULL;
-    return Qnil;
+    return ret;
 }
 
 void _init_majordomo_worker()
