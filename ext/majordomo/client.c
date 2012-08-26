@@ -17,6 +17,11 @@ static void rb_mark_majordomo_client(void *ptr)
     }
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when closing a Majordomo client
+ *
+*/
 static VALUE rb_nogvl_mdp_client_close(void *ptr)
 {
     mdp_client_t *client = ptr;
@@ -39,12 +44,32 @@ static void rb_free_majordomo_client(void *ptr)
     }
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when creating a new Majordomo client
+ *
+*/
 static VALUE rb_nogvl_mdp_client_new(void *ptr)
 {
     struct nogvl_md_client_new_args *args = ptr;
     return (VALUE)mdp_client_new(args->broker, args->verbose);
 }
 
+/*
+ *  call-seq:
+ *     Majordomo::Client.new("tcp://0.0.0.0:5555")          =>  Majordomo::Client
+ *     Majordomo::Client.new("tcp://0.0.0.0:5555", true)    =>  Majordomo::Client
+ *
+ *  Creates a new Majordomo::Client instance. A broker URI is required and an optional verbose flag
+ *  can be passed to the initializer.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.broker                                            =>  "tcp://0.0.0.0:5555"
+ *     cl.retries                                           =>  3
+ *     cl.send("test", "request")                           =>  "reply"
+ *
+*/
 static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
 {
     rb_majordomo_client_t *client = NULL;
@@ -55,7 +80,6 @@ static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
         verbose = Qfalse;
     Check_Type(broker, T_STRING);
     obj = Data_Make_Struct(klass, rb_majordomo_client_t, rb_mark_majordomo_client, rb_free_majordomo_client, client);
-
     args.broker = RSTRING_PTR(broker);
     args.verbose = (verbose == Qtrue ? 1 : 0);
     client->client = (mdp_client_t *)rb_thread_blocking_region(rb_nogvl_mdp_client_new, (void *)&args, RUBY_UBF_IO, 0);
@@ -66,21 +90,66 @@ static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
     return obj;
 }
 
+/*
+ *  call-seq:
+ *     cl.broker                        =>  String
+ *
+ *  Returns the URI of the broker this client is connected to.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.broker                                            =>  "tcp://0.0.0.0:5555"
+ *
+*/
 static VALUE rb_majordomo_client_broker(VALUE obj){
     GetMajordomoClient(obj);
     return client->broker;
 }
 
+/*
+ *  call-seq:
+ *     cl.timeout                       =>  Fixnum
+ *
+ *  Returns the request timeout for this client (in msecs).
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.timeout                                           =>  2500
+ *
+*/
 static VALUE rb_majordomo_client_timeout(VALUE obj){
     GetMajordomoClient(obj);
     return client->timeout;
 }
 
+/*
+ *  call-seq:
+ *     cl.retries                       =>  Fixnum
+ *
+ *  Returns the request retries for this client.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.retries                                           =>  3
+ *
+*/
 static VALUE rb_majordomo_client_retries(VALUE obj){
     GetMajordomoClient(obj);
     return client->retries;
 }
 
+/*
+ *  call-seq:
+ *     cl.timeout = val                                     =>  nil
+ *
+ *  Sets the request timeout for this client (in msecs).
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.timeout = 100                                     =>  nil
+ *     cl.timeout                                           =>  100
+ *
+*/
 static VALUE rb_majordomo_client_timeout_equals(VALUE obj, VALUE timeout){
     GetMajordomoClient(obj);
     Check_Type(timeout, T_FIXNUM);
@@ -89,6 +158,18 @@ static VALUE rb_majordomo_client_timeout_equals(VALUE obj, VALUE timeout){
     return Qnil;
 }
 
+/*
+ *  call-seq:
+ *     cl.retries = val                                     =>  nil
+ *
+ *  Sets the request retries for this client.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.retries = 5                                       =>  nil
+ *     cl.retries                                           =>  5
+ *
+*/
 static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
     GetMajordomoClient(obj);
     Check_Type(retries, T_FIXNUM);
@@ -97,12 +178,29 @@ static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
     return Qnil;
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when sending a client message
+ *
+*/
 static VALUE rb_nogvl_mdp_client_send(void *ptr)
 {
     struct nogvl_md_client_send_args *args = ptr;
     return (VALUE)mdp_client_send(args->client, args->service, &args->request);
 }
 
+/*
+ *  call-seq:
+ *     cl.send("service", "message")                        =>  String
+ *
+ *  Send a request to the broker and get a reply even if it has to retry several times. Valid replies are of type
+ *  String and NilClass.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.send("service", "message")                        =>  "reply"
+ *
+*/
 static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
     zmsg_t *request = NULL;
     zmsg_t *reply = NULL;
@@ -126,6 +224,17 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
     return MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));
 }
 
+/*
+ *  call-seq:
+ *     cl.close                                             =>  nil
+ *
+ *  Close the client connection to the broker.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
+ *     cl.close                                             =>  nil
+ *
+*/
 static VALUE rb_majordomo_client_close(VALUE obj){
     VALUE ret;
     GetMajordomoClient(obj);
