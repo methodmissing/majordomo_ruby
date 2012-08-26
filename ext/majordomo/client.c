@@ -57,17 +57,17 @@ static VALUE rb_nogvl_mdp_client_new(void *ptr)
 
 /*
  *  call-seq:
- *     Majordomo::Client.new("tcp://0.0.0.0:5555")          =>  Majordomo::Client
- *     Majordomo::Client.new("tcp://0.0.0.0:5555", true)    =>  Majordomo::Client
+ *     Majordomo::Client.new("tcp://0.0.0.0:5555")       =>  Majordomo::Client
+ *     Majordomo::Client.new("tcp://0.0.0.0:5555", true) =>  Majordomo::Client
  *
  *  Creates a new Majordomo::Client instance. A broker URI is required and an optional verbose flag
  *  can be passed to the initializer.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.broker                                            =>  "tcp://0.0.0.0:5555"
- *     cl.retries                                           =>  3
- *     cl.send("test", "request")                           =>  "reply"
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.broker                                         =>  "tcp://0.0.0.0:5555"
+ *     cl.retries                                        =>  3
+ *     cl.send("test", "request")                        =>  "reply"
  *
 */
 static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
@@ -92,13 +92,13 @@ static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
 
 /*
  *  call-seq:
- *     cl.broker                        =>  String
+ *     cl.broker                                         =>  String
  *
  *  Returns the URI of the broker this client is connected to.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.broker                                            =>  "tcp://0.0.0.0:5555"
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.broker                                         =>  "tcp://0.0.0.0:5555"
  *
 */
 static VALUE rb_majordomo_client_broker(VALUE obj){
@@ -113,8 +113,8 @@ static VALUE rb_majordomo_client_broker(VALUE obj){
  *  Returns the request timeout for this client (in msecs).
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.timeout                                           =>  2500
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.timeout                                        =>  2500
  *
 */
 static VALUE rb_majordomo_client_timeout(VALUE obj){
@@ -129,8 +129,8 @@ static VALUE rb_majordomo_client_timeout(VALUE obj){
  *  Returns the request retries for this client.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.retries                                           =>  3
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.retries                                        =>  3
  *
 */
 static VALUE rb_majordomo_client_retries(VALUE obj){
@@ -140,14 +140,14 @@ static VALUE rb_majordomo_client_retries(VALUE obj){
 
 /*
  *  call-seq:
- *     cl.timeout = val                                     =>  nil
+ *     cl.timeout = val                                  =>  nil
  *
  *  Sets the request timeout for this client (in msecs).
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.timeout = 100                                     =>  nil
- *     cl.timeout                                           =>  100
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.timeout = 100                                  =>  nil
+ *     cl.timeout                                        =>  100
  *
 */
 static VALUE rb_majordomo_client_timeout_equals(VALUE obj, VALUE timeout){
@@ -160,14 +160,14 @@ static VALUE rb_majordomo_client_timeout_equals(VALUE obj, VALUE timeout){
 
 /*
  *  call-seq:
- *     cl.retries = val                                     =>  nil
+ *     cl.retries = val                                  =>  nil
  *
  *  Sets the request retries for this client.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.retries = 5                                       =>  nil
- *     cl.retries                                           =>  5
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.retries = 5                                    =>  nil
+ *     cl.retries                                        =>  5
  *
 */
 static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
@@ -191,14 +191,14 @@ static VALUE rb_nogvl_mdp_client_send(void *ptr)
 
 /*
  *  call-seq:
- *     cl.send("service", "message")                        =>  String
+ *     cl.send("service", "message")                     =>  String or nil
  *
  *  Send a request to the broker and get a reply even if it has to retry several times. Valid replies are of type
  *  String and NilClass.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.send("service", "message")                        =>  "reply"
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.send("service", "message")                     =>  "reply"
  *
 */
 static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
@@ -226,13 +226,13 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
 
 /*
  *  call-seq:
- *     cl.close                                             =>  nil
+ *     cl.close                                          =>  nil
  *
  *  Close the client connection to the broker.
  *
  * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")     =>  Majordomo::Client
- *     cl.close                                             =>  nil
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.close                                          =>  nil
  *
 */
 static VALUE rb_majordomo_client_close(VALUE obj){

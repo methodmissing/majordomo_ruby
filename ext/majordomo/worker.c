@@ -18,6 +18,11 @@ static void rb_mark_majordomo_worker(void *ptr)
     }
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when closing a Majordomo worker
+ *
+*/
 static VALUE rb_nogvl_mdp_worker_close(void *ptr)
 {
     mdp_worker_t *worker = ptr;
@@ -40,12 +45,32 @@ static void rb_free_majordomo_worker(void *ptr)
     }
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when creating a new Majordomo worker
+ *
+*/
 static VALUE rb_nogvl_mdp_worker_new(void *ptr)
 {
     struct nogvl_md_worker_new_args *args = ptr;
     return (VALUE)mdp_worker_new(args->broker, args->service, args->verbose);
 }
 
+/*
+ *  call-seq:
+ *     Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")       =>  Majordomo::Worker
+ *     Majordomo::Worker.new("tcp://0.0.0.0:5555", "service", true) =>  Majordomo::Worker
+ *
+ *  Creates a new Majordomo::Worker instance. A broker URI and service identifier is required and an
+ *  optional verbose flag can be passed to the initializer.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.broker                                                    =>  "tcp://0.0.0.0:5555"
+ *     wk.heartbeat                                                 =>  2500
+ *     wk.recv                                                      =>  "request"
+ *
+*/
 static VALUE rb_majordomo_worker_s_new(int argc, VALUE *argv, VALUE klass)
 {
     rb_majordomo_worker_t *worker = NULL;
@@ -70,26 +95,82 @@ static VALUE rb_majordomo_worker_s_new(int argc, VALUE *argv, VALUE klass)
     return obj;
 }
 
+/*
+ *  call-seq:
+ *     wk.broker                        =>  String
+ *
+ *  Returns the URI of the broker this worker is connected to.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.broker                                                    =>  "tcp://0.0.0.0:5555"
+ *
+*/
 static VALUE rb_majordomo_worker_broker(VALUE obj){
     GetMajordomoWorker(obj);
     return worker->broker;
 }
 
+/*
+ *  call-seq:
+ *     wk.service                       =>  String
+ *
+ *  Returns the service identifier this worker implements.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.service                                                   =>  "service"
+ *
+*/
 static VALUE rb_majordomo_worker_service(VALUE obj){
     GetMajordomoWorker(obj);
     return worker->service;
 }
 
+/*
+ *  call-seq:
+ *     wk.heartbeat                                                 =>  Fixnum
+ *
+ *  Returns the worker heartbeat delay (in msecs).
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.heartbeat                                                 =>  2500
+ *
+*/
 static VALUE rb_majordomo_worker_heartbeat(VALUE obj){
     GetMajordomoWorker(obj);
     return worker->heartbeat;
 }
 
+/*
+ *  call-seq:
+ *     wk.reconnect                                                 =>  Fixnum
+ *
+ *  Returns the worker reconnect delay (in msecs).
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.reconnect                                                 =>  2500
+ *
+*/
 static VALUE rb_majordomo_worker_reconnect(VALUE obj){
     GetMajordomoWorker(obj);
     return worker->reconnect;
 }
 
+/*
+ *  call-seq:
+ *     wk.heartbeat = val                                           =>  nil
+ *
+ *  Sets the worker heartbeat delay (in msecs).
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.heartbeat = 100                                           =>  nil
+ *     wk.heartbeat                                                 =>  100
+ *
+*/
 static VALUE rb_majordomo_worker_heartbeat_equals(VALUE obj, VALUE heartbeat){
     GetMajordomoWorker(obj);
     Check_Type(heartbeat, T_FIXNUM);
@@ -98,6 +179,18 @@ static VALUE rb_majordomo_worker_heartbeat_equals(VALUE obj, VALUE heartbeat){
     return Qnil;
 }
 
+/*
+ *  call-seq:
+ *     wk.reconnect = 100                                           =>  nil
+ *
+ *  Sets the worker reconnect delay (in msecs).
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.reconnect = 100                                           =>  nil
+ *     wk.reconnect                                                 =>  100
+ *
+*/
 static VALUE rb_majordomo_worker_reconnect_equals(VALUE obj, VALUE reconnect){
     GetMajordomoWorker(obj);
     Check_Type(reconnect, T_FIXNUM);
@@ -106,12 +199,28 @@ static VALUE rb_majordomo_worker_reconnect_equals(VALUE obj, VALUE reconnect){
     return Qnil;
 }
 
+/*
+ * :nodoc:
+ *  Release the GIL when receiving a worker message
+ *
+*/
 static VALUE rb_nogvl_mdp_worker_recv(void *ptr)
 {
     struct nogvl_md_worker_recv_args *args = ptr;
     return (VALUE)mdp_worker_recv(args->worker, &args->reply);
 }
 
+/*
+ *  call-seq:
+ *     wk.recv                                                      =>  String or nil
+ *
+ *  Send reply, if any, to broker and wait for next request. Valid replies are of type String and NilClass.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.recv                                                      =>  "request"
+ *
+*/
 static VALUE rb_majordomo_worker_recv(VALUE obj){
     zmsg_t *reply = NULL;
     struct nogvl_md_worker_recv_args args;
@@ -124,6 +233,17 @@ static VALUE rb_majordomo_worker_recv(VALUE obj){
     return MajordomoEncode(rb_str_new2(zmsg_popstr(request)));
 }
 
+/*
+ *  call-seq:
+ *     wk.close                                                     =>  nil
+ *
+ *  Close the worker connection to the broker.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     wk.close                                                     =>  nil
+ *
+*/
 static VALUE rb_majordomo_worker_close(VALUE obj){
     VALUE ret;
     GetMajordomoWorker(obj);
