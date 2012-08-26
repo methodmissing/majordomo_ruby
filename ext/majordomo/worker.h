@@ -24,6 +24,11 @@ struct nogvl_md_worker_new_args {
     int verbose;
 };
 
+struct nogvl_md_worker_recv_args {
+    mdp_worker_t *worker;
+    zmsg_t *reply;
+};
+
 void _init_majordomo_worker();
 
 #endif

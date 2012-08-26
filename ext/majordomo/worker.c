@@ -106,10 +106,19 @@ static VALUE rb_majordomo_worker_reconnect_equals(VALUE obj, VALUE reconnect){
     return Qnil;
 }
 
+static VALUE rb_nogvl_mdp_worker_recv(void *ptr)
+{
+    struct nogvl_md_worker_recv_args *args = ptr;
+    return (VALUE)mdp_worker_recv(args->worker, &args->reply);
+}
+
 static VALUE rb_majordomo_worker_recv(VALUE obj){
-    GetMajordomoWorker(obj);
     zmsg_t *reply = NULL;
-    zmsg_t *request = mdp_worker_recv(worker->worker, &reply);
+    struct nogvl_md_worker_recv_args args;
+    GetMajordomoWorker(obj);
+    args.worker = worker->worker;
+    args.reply = reply;
+    zmsg_t *request = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_worker_recv, (void *)&args, RUBY_UBF_IO, 0);
     if (!request)
         return Qnil;
     return MajordomoEncode(rb_str_new2(zmsg_popstr(request)));
