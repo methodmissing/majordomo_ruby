@@ -66,10 +66,19 @@ class TestWorker < MajordomoTestCase
   def test_recv
     service = "test_revc"
     worker = Majordomo::Worker.new(BROKER, service, true)
+    worker.heartbeat = 100
+    worker.reconnect = 100
+
     client = Majordomo::Client.new(BROKER, true)
     client.timeout = 100
-    client.send service, "message"
-    assert_equal "message", worker.recv
+    assert client.send service, "request"
+
+    request = worker.recv
+    assert_instance_of Array, request
+    assert_equal "request", request[0]
+
+    assert worker.send("reply", request[1])
+    assert_equal "reply", client.recv(service)
   ensure
     client.close
     worker.close

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 require File.join(File.dirname(__FILE__), 'helper')
-
+=begin
 class TestThreading < MajordomoTestCase
   def test_send_recv
     threads = []
@@ -9,12 +9,13 @@ class TestThreading < MajordomoTestCase
     threads << Thread.new do
       client = Majordomo::Client.new(BROKER, true)
       client.timeout = 100
-      client.send("thread_test", "message")
+      p client.send("thread_test", "ping")
     end
 
     threads << Thread.new do
       worker = Majordomo::Worker.new(BROKER, "thread_test", true)
       msg = worker.recv
+      worker.recv("pong")
       received = true if msg
     end
 
@@ -22,3 +23,4 @@ class TestThreading < MajordomoTestCase
     assert received
   end
 end
+=end

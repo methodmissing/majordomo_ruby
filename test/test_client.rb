@@ -33,15 +33,6 @@ class TestClient < MajordomoTestCase
     client.close
   end
 
-  def test_retries
-    client = Majordomo::Client.new(BROKER)
-    assert_equal 3, client.retries
-    client.retries = 2
-    assert_equal 2, client.retries
-  ensure
-    client.close
-  end
-
   def test_close
     client = Majordomo::Client.new(BROKER)
     assert_nil client.close
@@ -53,8 +44,7 @@ class TestClient < MajordomoTestCase
   def test_send
     client = Majordomo::Client.new(BROKER, true)
     client.timeout = 100;
-    client.retries = 5
-    client.send("test", "message")
+    assert client.send("test", "message")
   ensure
     client.close
   end

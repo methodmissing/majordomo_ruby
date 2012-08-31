@@ -5,11 +5,9 @@ typedef struct {
     mdp_client_t *client;
     VALUE broker;
     VALUE timeout;
-    VALUE retries;
 } rb_majordomo_client_t;
 
 #define MAJORDOMO_CLIENT_TIMEOUT 2500
-#define MAJORDOMO_CLIENT_RETRIES 3
 
 #define GetMajordomoClient(obj) \
     rb_majordomo_client_t *client = NULL; \
@@ -26,6 +24,11 @@ struct nogvl_md_client_send_args {
     mdp_client_t *client;
     char *service;
     zmsg_t *request;
+};
+
+struct nogvl_md_client_recv_args {
+    mdp_client_t *client;
+    char *service;
 };
 
 void _init_majordomo_client();

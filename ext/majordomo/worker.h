@@ -26,7 +26,13 @@ struct nogvl_md_worker_new_args {
 
 struct nogvl_md_worker_recv_args {
     mdp_worker_t *worker;
-    zmsg_t *reply;
+    zframe_t *reply;
+};
+
+struct nogvl_md_worker_send_args {
+    mdp_worker_t *worker;
+    zmsg_t *progress;
+    zframe_t *reply_to;
 };
 
 void _init_majordomo_worker();

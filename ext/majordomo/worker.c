@@ -214,23 +214,69 @@ static VALUE rb_nogvl_mdp_worker_recv(void *ptr)
  *  call-seq:
  *     wk.recv                                                      =>  String or nil
  *
- *  Send reply, if any, to broker and wait for next request. Valid replies are of type String and NilClass.
+ *  Receives a client request form the broker. Valid requests are of type String and NilClass
  *
  * === Examples
  *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
- *     wk.recv                                                      =>  "request"
+ *     wk.recv                                                      =>  ["request", "reply"]
  *
 */
 static VALUE rb_majordomo_worker_recv(VALUE obj){
-    zmsg_t *reply = NULL;
+    VALUE req, reply;
     struct nogvl_md_worker_recv_args args;
     GetMajordomoWorker(obj);
     args.worker = worker->worker;
-    args.reply = reply;
+    args.reply = NULL;
     zmsg_t *request = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_worker_recv, (void *)&args, RUBY_UBF_IO, 0);
     if (!request)
         return Qnil;
-    return MajordomoEncode(rb_str_new2(zmsg_popstr(request)));
+    req = MajordomoEncode(rb_str_new2(zmsg_popstr(request)));
+    zmsg_destroy(&request);
+    reply = rb_str_new(zframe_data(args.reply), zframe_size(args.reply));
+    zframe_destroy(&args.reply);
+    return rb_ary_new3(2, req, reply);
+}
+
+/*
+ * :nodoc:
+ *  Release the GIL when sending a worker message
+ *
+*/
+static VALUE rb_nogvl_mdp_worker_send(void *ptr)
+{
+    struct nogvl_md_worker_send_args *args = ptr;
+    mdp_worker_send(args->worker, &args->progress, args->reply_to);
+    return Qnil;
+}
+
+/*
+ *  call-seq:
+ *     wk.send(message, reply_to)                                   =>  boolean
+ *
+ *  Send a reply to a client request. Returns true if the send was succfessful.
+ *
+ * === Examples
+ *     wk = Majordomo::Worker.new("tcp://0.0.0.0:5555", "service")  =>  Majordomo::Worker
+ *     req, reply_to = wk.recv                                      =>  ["request", "reply"]
+ *     wk.send("reply", reply_to)                                   =>  true
+ *
+*/
+static VALUE rb_majordomo_worker_send(VALUE obj, VALUE message, VALUE reply_to){
+    VALUE req;
+    struct nogvl_md_worker_send_args args;
+    GetMajordomoWorker(obj);
+    args.worker = worker->worker;
+    args.progress = zmsg_new();
+    if (!args.progress)
+        return Qfalse;
+    if (zmsg_pushmem(args.progress, RSTRING_PTR(message), RSTRING_LEN(message)) == -1) {
+        zmsg_destroy(&args.progress);
+        return Qfalse;
+    }
+    args.reply_to = zframe_new(RSTRING_PTR(reply_to), RSTRING_LEN(reply_to));
+    rb_thread_blocking_region(rb_nogvl_mdp_worker_send, (void *)&args, RUBY_UBF_IO, 0);
+    zframe_destroy(&args.reply_to);
+    return Qtrue;
 }
 
 /*
@@ -264,5 +310,6 @@ void _init_majordomo_worker()
     rb_define_method(rb_cMajordomoWorker, "heartbeat=", rb_majordomo_worker_heartbeat_equals, 1);
     rb_define_method(rb_cMajordomoWorker, "reconnect=", rb_majordomo_worker_reconnect_equals, 1);
     rb_define_method(rb_cMajordomoWorker, "recv", rb_majordomo_worker_recv, 0);
+    rb_define_method(rb_cMajordomoWorker, "send", rb_majordomo_worker_send, 2);
     rb_define_method(rb_cMajordomoWorker, "close", rb_majordomo_worker_close, 0);
 }

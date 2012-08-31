@@ -13,7 +13,6 @@ static void rb_mark_majordomo_client(void *ptr)
     if (client) {
         rb_gc_mark(client->broker);
         rb_gc_mark(client->timeout);
-        rb_gc_mark(client->retries);
     }
 }
 
@@ -66,7 +65,7 @@ static VALUE rb_nogvl_mdp_client_new(void *ptr)
  * === Examples
  *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
  *     cl.broker                                         =>  "tcp://0.0.0.0:5555"
- *     cl.retries                                        =>  3
+ *     cl.timeout                                        =>  2500
  *     cl.send("test", "request")                        =>  "reply"
  *
 */
@@ -85,7 +84,6 @@ static VALUE rb_majordomo_client_s_new(int argc, VALUE *argv, VALUE klass)
     client->client = (mdp_client_t *)rb_thread_blocking_region(rb_nogvl_mdp_client_new, (void *)&args, RUBY_UBF_IO, 0);
     client->broker = rb_str_new4(broker);
     client->timeout = INT2NUM(MAJORDOMO_CLIENT_TIMEOUT);
-    client->retries = INT2NUM(MAJORDOMO_CLIENT_RETRIES);
     rb_obj_call_init(obj, 0, NULL);
     return obj;
 }
@@ -124,22 +122,6 @@ static VALUE rb_majordomo_client_timeout(VALUE obj){
 
 /*
  *  call-seq:
- *     cl.retries                       =>  Fixnum
- *
- *  Returns the request retries for this client.
- *
- * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
- *     cl.retries                                        =>  3
- *
-*/
-static VALUE rb_majordomo_client_retries(VALUE obj){
-    GetMajordomoClient(obj);
-    return client->retries;
-}
-
-/*
- *  call-seq:
  *     cl.timeout = val                                  =>  nil
  *
  *  Sets the request timeout for this client (in msecs).
@@ -159,26 +141,6 @@ static VALUE rb_majordomo_client_timeout_equals(VALUE obj, VALUE timeout){
 }
 
 /*
- *  call-seq:
- *     cl.retries = val                                  =>  nil
- *
- *  Sets the request retries for this client.
- *
- * === Examples
- *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
- *     cl.retries = 5                                    =>  nil
- *     cl.retries                                        =>  5
- *
-*/
-static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
-    GetMajordomoClient(obj);
-    Check_Type(retries, T_FIXNUM);
-    mdp_client_set_retries(client->client, FIX2INT(retries));
-    client->retries = retries;
-    return Qnil;
-}
-
-/*
  * :nodoc:
  *  Release the GIL when sending a client message
  *
@@ -186,19 +148,19 @@ static VALUE rb_majordomo_client_retries_equals(VALUE obj, VALUE retries){
 static VALUE rb_nogvl_mdp_client_send(void *ptr)
 {
     struct nogvl_md_client_send_args *args = ptr;
-    return (VALUE)mdp_client_send(args->client, args->service, &args->request);
+    mdp_client_send(args->client, args->service, &args->request);
+    return Qnil;
 }
 
 /*
  *  call-seq:
- *     cl.send("service", "message")                     =>  String or nil
+ *     cl.send("service", "message")                     =>  boolean
  *
- *  Send a request to the broker and get a reply even if it has to retry several times. Valid replies are of type
- *  String and NilClass.
+ *  Send a request to the broker. Returns true if the send was successful.
  *
  * === Examples
  *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
- *     cl.send("service", "message")                     =>  "reply"
+ *     cl.send("service", "message")                     =>  true
  *
 */
 static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
@@ -208,20 +170,57 @@ static VALUE rb_majordomo_client_send(VALUE obj, VALUE service, VALUE message){
     GetMajordomoClient(obj);
     Check_Type(service, T_STRING);
     Check_Type(message, T_STRING);
-    request = zmsg_new();
-    if (!request)
-        return Qnil;
-    if (zmsg_pushstr(request, RSTRING_PTR(message)) != 0){
-        zmsg_destroy(&request);
-        return Qnil;
-    }
     args.client = client->client;
     args.service = RSTRING_PTR(service);
-    args.request = request;
-    reply = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_client_send, (void *)&args, RUBY_UBF_IO, 0);
+    args.request = zmsg_new();
+    if (!args.request)
+        return Qfalse;
+    if (zmsg_pushstr(args.request, RSTRING_PTR(message)) != 0){
+        zmsg_destroy(&args.request);
+        return Qfalse;
+    }
+    rb_thread_blocking_region(rb_nogvl_mdp_client_send, (void *)&args, RUBY_UBF_IO, 0);
+    return Qtrue;
+}
+
+/*
+ * :nodoc:
+ *  Release the GIL when receiving a client message
+ *
+*/
+static VALUE rb_nogvl_mdp_client_recv(void *ptr)
+{
+    struct nogvl_md_client_send_args *args = ptr;
+    return (VALUE)mdp_client_recv(args->client, args->service);
+}
+
+/*
+ *  call-seq:
+ *     cl.recv("service")                     =>  String or nil
+ *
+ *  Send a request to the broker and get a reply even if it has to retry several times. Valid replies are of type
+ *  String and NilClass.
+ *
+ * === Examples
+ *     cl = Majordomo::Client.new("tcp://0.0.0.0:5555")  =>  Majordomo::Client
+ *     cl.send("service", "message")                     =>  nil
+ *     cl.recv("service")                                =>  "reply"
+ *
+*/
+static VALUE rb_majordomo_client_recv(VALUE obj, VALUE service){
+    VALUE rep;
+    zmsg_t *reply = NULL;
+    struct nogvl_md_client_recv_args args;
+    GetMajordomoClient(obj);
+    Check_Type(service, T_STRING);
+    args.client = client->client;
+    args.service = RSTRING_PTR(service);
+    reply = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_client_recv, (void *)&args, RUBY_UBF_IO, 0);
     if (!reply)
         return Qnil;
-    return MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));
+    rep = MajordomoEncode(rb_str_new2(zmsg_popstr(reply)));
+    zmsg_destroy(&reply);
+    return rep;
 }
 
 /*
@@ -250,9 +249,8 @@ void _init_majordomo_client()
     rb_define_singleton_method(rb_cMajordomoClient, "new", rb_majordomo_client_s_new, -1);
     rb_define_method(rb_cMajordomoClient, "broker", rb_majordomo_client_broker, 0);
     rb_define_method(rb_cMajordomoClient, "timeout", rb_majordomo_client_timeout, 0);
-    rb_define_method(rb_cMajordomoClient, "retries", rb_majordomo_client_retries, 0);
     rb_define_method(rb_cMajordomoClient, "timeout=", rb_majordomo_client_timeout_equals, 1);
-    rb_define_method(rb_cMajordomoClient, "retries=", rb_majordomo_client_retries_equals, 1);
     rb_define_method(rb_cMajordomoClient, "send", rb_majordomo_client_send, 2);
+    rb_define_method(rb_cMajordomoClient, "recv", rb_majordomo_client_recv, 1);
     rb_define_method(rb_cMajordomoClient, "close", rb_majordomo_client_close, 0);
 }
