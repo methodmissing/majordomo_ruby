@@ -274,6 +274,10 @@ static VALUE rb_majordomo_worker_send(VALUE obj, VALUE message, VALUE reply_to){
         return Qfalse;
     }
     args.reply_to = zframe_new(RSTRING_PTR(reply_to), RSTRING_LEN(reply_to));
+    if (!args.reply_to) {
+        zmsg_destroy(&args.progress);
+        return Qfalse;
+    }
     rb_thread_blocking_region(rb_nogvl_mdp_worker_send, (void *)&args, RUBY_UBF_IO, 0);
     zframe_destroy(&args.reply_to);
     return Qtrue;
