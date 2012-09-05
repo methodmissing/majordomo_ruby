@@ -40,6 +40,9 @@ static void rb_free_majordomo_worker(void *ptr)
     rb_majordomo_worker_t *worker = (rb_majordomo_worker_t *)ptr;
     if (worker) {
         if (worker->worker) rb_thread_blocking_region(rb_nogvl_mdp_worker_close, (void *)worker->worker, RUBY_UBF_IO, 0);
+#ifndef HAVE_RB_THREAD_BLOCKING_REGION
+        zlist_destroy(&(worker->recv_buffer));
+#endif
         xfree(worker);
         worker = NULL;
     }
@@ -91,6 +94,9 @@ static VALUE rb_majordomo_worker_s_new(int argc, VALUE *argv, VALUE klass)
     worker->service = rb_str_new4(service);
     worker->heartbeat = INT2NUM(MAJORDOMO_WORKER_HEARTBEAT);
     worker->reconnect = INT2NUM(MAJORDOMO_WORKER_RECONNECT);
+#ifndef HAVE_RB_THREAD_BLOCKING_REGION
+    worker->recv_buffer = zlist_new();
+#endif
     rb_obj_call_init(obj, 0, NULL);
     return obj;
 }
@@ -207,7 +213,29 @@ static VALUE rb_majordomo_worker_reconnect_equals(VALUE obj, VALUE reconnect){
 static VALUE rb_nogvl_mdp_worker_recv(void *ptr)
 {
     struct nogvl_md_worker_recv_args *args = ptr;
-    return (VALUE)mdp_worker_recv(args->worker, &args->reply);
+    rb_majordomo_worker_t *worker = args->worker;
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+    return (VALUE)mdp_worker_recv(worker->worker, &args->reply);
+#else
+    uint32_t events;
+    size_t evopt_len = sizeof (uint32_t);
+    int fd;
+    size_t fdopt_len = sizeof (int);
+    if (zlist_size(worker->recv_buffer) != 0)
+       return (VALUE)zlist_pop(worker->recv_buffer);
+try_readable:
+    mdp_worker_getsockopt (worker->worker, ZMQ_EVENTS, &events, &evopt_len);
+    if ((events & ZMQ_POLLIN) == ZMQ_POLLIN) {
+        do {
+            zlist_append(worker->recv_buffer, mdp_worker_recv(worker->worker, &args->reply));
+        } while (zmq_errno() != EAGAIN && zmq_errno() != EINTR);
+        return (VALUE)zlist_pop(worker->recv_buffer);
+     } else {
+        mdp_worker_getsockopt (worker->worker, ZMQ_FD, &fd, &fdopt_len);
+        rb_thread_wait_fd(fd);
+        goto try_readable;
+     }
+#endif
 }
 
 /*
@@ -225,7 +253,7 @@ static VALUE rb_majordomo_worker_recv(VALUE obj){
     VALUE req, reply;
     struct nogvl_md_worker_recv_args args;
     GetMajordomoWorker(obj);
-    args.worker = worker->worker;
+    args.worker = worker;
     args.reply = NULL;
     zmsg_t *request = (zmsg_t *)rb_thread_blocking_region(rb_nogvl_mdp_worker_recv, (void *)&args, RUBY_UBF_IO, 0);
     if (!request)
@@ -245,7 +273,27 @@ static VALUE rb_majordomo_worker_recv(VALUE obj){
 static VALUE rb_nogvl_mdp_worker_send(void *ptr)
 {
     struct nogvl_md_worker_send_args *args = ptr;
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
     mdp_worker_send(args->worker, &args->progress, args->reply_to);
+#else
+    uint32_t events;
+    size_t evopt_len = sizeof (uint32_t);
+    int fd;
+    size_t fdopt_len = sizeof (int);
+    if (rb_thread_alone()) {
+        mdp_worker_send(args->worker, &args->progress, args->reply_to);
+        return Qnil;
+    }
+try_writable:
+    mdp_worker_getsockopt (args->worker, ZMQ_EVENTS, &events, &evopt_len);
+    if ((events & ZMQ_POLLOUT) == ZMQ_POLLOUT) {
+        mdp_worker_send(args->worker, &args->progress, args->reply_to);
+    } else {
+        mdp_worker_getsockopt (args->worker, ZMQ_FD, &fd, &fdopt_len);
+        rb_thread_wait_fd(fd);
+        goto try_writable;
+    }
+#endif
     return Qnil;
 }
 
@@ -262,7 +310,6 @@ static VALUE rb_nogvl_mdp_worker_send(void *ptr)
  *
 */
 static VALUE rb_majordomo_worker_send(VALUE obj, VALUE message, VALUE reply_to){
-    VALUE req;
     struct nogvl_md_worker_send_args args;
     GetMajordomoWorker(obj);
     args.worker = worker->worker;

@@ -7,6 +7,9 @@ typedef struct {
     VALUE service;
     VALUE heartbeat;
     VALUE reconnect;
+#ifndef HAVE_RB_THREAD_BLOCKING_REGION
+    zlist_t *recv_buffer;
+#endif
 } rb_majordomo_worker_t;
 
 #define MAJORDOMO_WORKER_HEARTBEAT 2500
@@ -25,7 +28,7 @@ struct nogvl_md_worker_new_args {
 };
 
 struct nogvl_md_worker_recv_args {
-    mdp_worker_t *worker;
+    rb_majordomo_worker_t *worker;
     zframe_t *reply;
 };
 
