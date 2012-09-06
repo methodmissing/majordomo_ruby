@@ -148,7 +148,7 @@ Running tests
 
 OS X notes:
 
-If you are installing the package on a new Mac ensure you have libtool and autoconf installed.  
+If you are installing ZeroMQ and CZMQ on a new Mac ensure you have libtool and autoconf installed.  
 You can get those with the brew packaging system:
 
     brew install libtool autoconf automake
