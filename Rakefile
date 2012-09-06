@@ -15,7 +15,7 @@ rescue LoadError # fallback to older 1.8.7 rubies
 require 'rake/rdoctask'
 end
 
-gemspec = eval(IO.read('majordomo.gemspec'))
+gemspec = eval(IO.read('mdp.gemspec'))
 
 Gem::PackageTask.new(gemspec) do |pkg|
 end

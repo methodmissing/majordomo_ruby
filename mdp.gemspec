@@ -3,10 +3,10 @@
 require File.expand_path('../lib/majordomo/version', __FILE__)
 
 Gem::Specification.new do |s|
-  s.name = "majordomo"
+  s.name = "mdp"
   s.version = Majordomo::VERSION
   s.summary = "Majordomo for Ruby"
-  s.description = "Majordomo - A Ruby binding for libmd (Majordomo implementation in C)"
+  s.description = "Majordomo - A Ruby binding for libmdp (Majordomo implementation in C)"
   s.authors = ["Lourens Naudé"]
   s.email = ["lourens@methodmissing.com"]
   s.homepage = "http://github.com/methodmissing/majordomo"
