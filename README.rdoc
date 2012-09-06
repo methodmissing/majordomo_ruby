@@ -46,71 +46,71 @@ Majordomo is designed to be scalable to large numbers (thousands) of workers and
 
 ==== Start the broker
 
-	Lourenss-MacBook-Air:src lourens$ mdp_broker -v
-	12-09-06 02:05:06 I: MDP broker/0.2.0 is active at tcp://*:5555
+    Lourenss-MacBook-Air:src lourens$ mdp_broker -v
+    12-09-06 02:05:06 I: MDP broker/0.2.0 is active at tcp://*:5555
 
 ==== Start a worker
 
-	2.0.0dev :001 > require 'majordomo'
-	 => true 
-	2.0.0dev :002 > w = Majordomo::Worker.new("tcp://localhost:5555", "service", true)
-	12-09-06 02:02:45 I: connecting to broker at tcp://localhost:5555...
-	12-09-06 02:02:45 I: sending READY to broker
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 01
-	[007] service
-	 => #<Majordomo::Worker:0x007fc533927840> 
-	2.0.0dev :003 > w.recv
-	12-09-06 02:03:06 I: received message from broker:
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 04
-	12-09-06 02:03:06 I: sending HEARTBEAT to broker
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 04
-	12-09-06 02:03:06 I: received message from broker:
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 04
-	12-09-06 02:03:06 I: received message from broker:
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 04
-	12-09-06 02:03:06 I: received message from broker:
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 05
-	12-09-06 02:03:06 I: connecting to broker at tcp://localhost:5555...
-	12-09-06 02:03:06 I: sending READY to broker
-	--------------------------------------
-	[000] 
-	[006] MDPW0X
-	[001] 01
-	[007] service
+    2.0.0dev :001 > require 'majordomo'
+     => true 
+    2.0.0dev :002 > w = Majordomo::Worker.new("tcp://localhost:5555", "service", true)
+    12-09-06 02:02:45 I: connecting to broker at tcp://localhost:5555...
+    12-09-06 02:02:45 I: sending READY to broker
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 01
+    [007] service
+     => #<Majordomo::Worker:0x007fc533927840> 
+    2.0.0dev :003 > w.recv
+    12-09-06 02:03:06 I: received message from broker:
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 04
+    12-09-06 02:03:06 I: sending HEARTBEAT to broker
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 04
+    12-09-06 02:03:06 I: received message from broker:
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 04
+    12-09-06 02:03:06 I: received message from broker:
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 04
+    12-09-06 02:03:06 I: received message from broker:
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 05
+    12-09-06 02:03:06 I: connecting to broker at tcp://localhost:5555...
+    12-09-06 02:03:06 I: sending READY to broker
+    --------------------------------------
+    [000] 
+    [006] MDPW0X
+    [001] 01
+    [007] service
 
 ==== Start a client
 
-	2.0.0dev :001 > require 'majordomo'
-	 => true 
-	2.0.0dev :002 > c = Majordomo::Client.new("tcp://localhost:5555", true)
-	12-09-06 02:00:11 I: connecting to broker at tcp://localhost:5555...
-	 => #<Majordomo::Client:0x007ffc738d71c0> 
-	2.0.0dev :003 > c.send("service", "message")
-	12-09-06 02:00:26 I: send request to 'service' service:
-	--------------------------------------
-	[000] 
-	[006] MDPC0X
-	[007] service
-	[007] message
-	 => true
+    2.0.0dev :001 > require 'majordomo'
+     => true 
+    2.0.0dev :002 > c = Majordomo::Client.new("tcp://localhost:5555", true)
+    12-09-06 02:00:11 I: connecting to broker at tcp://localhost:5555...
+     => #<Majordomo::Client:0x007ffc738d71c0> 
+    2.0.0dev :003 > c.send("service", "message")
+    12-09-06 02:00:26 I: send request to 'service' service:
+    --------------------------------------
+    [000] 
+    [006] MDPC0X
+    [007] service
+    [007] message
+     => true
 
 See the test/ folder for further use cases - runnable examples forthcoming.
 
